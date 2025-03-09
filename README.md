@@ -9,6 +9,9 @@
     X11 example hack. Reads an XPM from a file, and loads it centered on
     screen in an X11 window that disappears after a brief 3 second delay.
 
+    Allows for SplashImage to be partially transparent over the
+    background.
+
 &nbsp;
 
 ## Installation.
