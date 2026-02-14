@@ -263,6 +263,9 @@ void displaySplash(XImage* splashScreen) {
     const int EXPOSED_EVENT_COUNT_NEEDED =
         mDisplayManagerType == DMType::GDM ? 3 : 1;
 
+    cout << "EXPOSED_EVENT_COUNT_NEEDED: " <<
+        EXPOSED_EVENT_COUNT_NEEDED << endl;
+
     // Show SplashImage in the window. Consume X11 events.
     // Respond to Expose event for DRAW.
     XSelectInput(mDisplay, mSplashWindow, ExposureMask);
@@ -273,6 +276,8 @@ void displaySplash(XImage* splashScreen) {
     while (!finalEventReceived) {
         XEvent event;
         XNextEvent(mDisplay, &event);
+        debugXEvent(event);
+
         switch (event.type) {
             case Expose:
                 if (++exposedEventCount >= EXPOSED_EVENT_COUNT_NEEDED) {
@@ -337,4 +342,15 @@ void debugXImage(string tag, XImage* image) {
         }
         printf("\n");
     }
+}
+
+/** ********************************************************
+ ** Helper method to debug the XImage contents.
+ **/
+void debugXEvent(XEvent event) {
+    const XAnyEvent* ANY_EVENT = (XAnyEvent*) &event;
+
+    cout << "X11Event Window: " << ANY_EVENT->window <<
+        " Display: " << ANY_EVENT->display <<
+        " Type: " << ANY_EVENT->type << endl;
 }

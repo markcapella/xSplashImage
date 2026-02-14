@@ -38,4 +38,6 @@ DMType getDMTypeFromFile(const string inFile);
 void displaySplash(XImage* splashScreen);
 
 int handleX11ErrorEvent(Display* dpy, XErrorEvent* event);
+
 void debugXImage(string tag, XImage* image);
+void debugXEvent(XEvent event);
