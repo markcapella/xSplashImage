@@ -240,12 +240,12 @@ DMType getDMTypeFromFile(const string inFile) {
     string inString;
     while (getline(inStream, inString)) {
         cout << "file: " << inFile << " = " << inString << "." << endl;
-        if (inString.find("sddm")) {
+        if (inString.find("sddm") != string::npos) {
             inStream.close();
             cout << "   specifies: sddm as DM." << endl;
             return DMType::SDDM;
         }
-        if (inString.find("gdm")) {
+        if (inString.find("gdm") != string::npos) {
             inStream.close();
             cout << "   specifies: gdm as DM." << endl;
             return DMType::GDM;
