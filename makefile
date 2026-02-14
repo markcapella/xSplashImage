@@ -3,7 +3,7 @@
 # Variables to control Compile / Link.
 
 APP_NAME="xSplashImage"
-APP_VERSION="2026-01-04"
+APP_VERSION="2026-02-13"
 APP_AUTHOR="Mark James Capella"
 
 # Color styling.
@@ -20,7 +20,7 @@ COLOR_WHITE := $(shell tput setaf 7)
 
 CPP = g++
 
-APP_CFLAGS=-Wall -ansi -g -m64 -std=c++11
+APP_CFLAGS=-Wall -ansi -g -m64 -std=c++17
 APP_LFLAGS=-m64 -L/usr/lib/x86_64-linux-gnu -lX11 -lxcb -lXpm
 
 LIBX11DEV = /usr/include/X11/Xlib.h
@@ -62,6 +62,23 @@ all:
 
 	@echo
 	@echo "$(COLOR_BLUE)Build Done.$(COLOR_NORMAL)"
+
+# ****************************************************
+# sudo make install
+#
+install:
+	@echo
+	@echo "$(COLOR_YELLOW)""There is no install or uninstall method."
+	@echo "   use: make run -or- ./xSplashImage"\
+		"$(COLOR_NORMAL)"
+
+# ****************************************************
+# sudo make uninstall
+
+uninstall:
+	@echo
+	@echo "$(COLOR_YELLOW)""There is no install or uninstall method."\
+		"$(COLOR_NORMAL)"
 
 # ****************************************************
 # make run
