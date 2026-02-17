@@ -11,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <malloc.h>
-#include <memory>
 #include <string>
 #include <unistd.h>
 
@@ -27,9 +26,6 @@ using namespace filesystem;
  /**
  * Module globals.
  */
-const string SPLASH_IMAGE_FILENAME =
-    "xSplashImage.xpm";
-
 Atom mAtomDMSupportsWMCheck;
 Atom mAtomGetWMName;
 Atom mAtomGetUTF8String;
@@ -84,7 +80,6 @@ int main(int argc, char *argv[]) {
     mAtomGetWMName = XInternAtom(mDisplay, "_NET_WM_NAME", False);
     mAtomGetUTF8String = XInternAtom(mDisplay, "UTF8_STRING", False);
     const string WM_NAME = getWindowManagerName();
-
 
     // Setup x11 Error handler.
     XSetErrorHandler(handleX11ErrorEvent);
@@ -272,37 +267,37 @@ void displaySplashImage(XImage* splashImage) {
  * Helper method to determine the Display Manager (DM).
  */
 string getDisplayManagerType() {
+    const string UNKNOWN_DM_STRING = "(Unknown)";
+
+    string result = UNKNOWN_DM_STRING;
     const char* CMD = "ps --ppid 1";
-    FILE* procsListPipe = popen(CMD, "r");
-    if (!procsListPipe) {
-        return "Unknown";
+    FILE* procsFile = popen(CMD, "r");
+    if (!procsFile) {
+        return result;
     }
 
-    AUTOCLOSE_FILEPTR ppPtr(procsListPipe, &pclose);
-    return getDMTypeFromPipe(std::move(ppPtr));
-}
-
-/**
- * Helper method to find a DM in a pipe.
- */
-string getDMTypeFromPipe(AUTOCLOSE_FILEPTR pipe) {
-    char inLine[2048];
-
-    while (fgets(inLine, sizeof(inLine),
-        pipe.get()) != nullptr) {
-        const string INLINE(inLine);
-        if (INLINE.find("lightdm") != string::npos) {
-            return "LightDM";
+    #define BUFFER_LENGTH 1024
+    char inFileBuffer[BUFFER_LENGTH];
+    try {
+        while (fgets(inFileBuffer, BUFFER_LENGTH,
+            procsFile) != nullptr) {
+            if (strstr(inFileBuffer, "lightdm") != 0) {
+                pclose(procsFile);
+                return "LightDM";
+            }
+            if (strstr(inFileBuffer, "sddm") != 0) {
+                pclose(procsFile);
+                return "Sddm";
+            }
+            if (strstr(inFileBuffer, "gdm") != 0) {
+                pclose(procsFile);
+                return "Gdm";
+            }
         }
-        if (INLINE.find("sddm") != string::npos) {
-            return "Sddm";
-        }
-        if (INLINE.find("gdm") != string::npos) {
-            return "Gdm";
-        }
-    }
+    } catch (...) { }
 
-    return "Unknown DM";
+    pclose(procsFile);
+    return result;
 }
 
 /**

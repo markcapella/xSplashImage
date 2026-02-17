@@ -5,13 +5,9 @@
  * Minimally create and display an x11 window SplashPage
  * from a locally defined XPM image file.
  */
-#include <memory>
 #include <string>
 
 using namespace std;
-
-using AUTOCLOSE_FILEPTR = unique_ptr<
-    FILE, int (*)(FILE*)>;
 
 /**
  * Module Type & Defines.
@@ -33,6 +29,12 @@ enum class DMType {
 #define COLOR_CYAN "\033[1;36m"
 
 /**
+ * Module Consts.
+ */
+const string SPLASH_IMAGE_FILENAME =
+    "xSplashImage.xpm";
+
+/**
  * Module Method definitions.
  */
 void mergeRootImageUnderSplashImage(
@@ -42,9 +44,8 @@ XImage* createBlackXImage();
 void displaySplashImage(XImage* splashImage);
 
 string getDisplayManagerType();
-string getDMTypeFromPipe(AUTOCLOSE_FILEPTR pipe);
-
 string getWindowManagerName();
+
 bool displayCanReportWMName();
 Window getRootWindowFromDisplay();
 string getWMNameFromRootWindow(Window rootWindow);
