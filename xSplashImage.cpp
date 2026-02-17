@@ -23,22 +23,26 @@
 
 using namespace filesystem;
 
- /**
- * Module globals.
+
+/**
+ * Module Consts.
  */
+const char* SPLASH_IMAGE_FILENAME =
+    "xSplashImage.xpm";
+
 Atom mAtomDMSupportsWMCheck;
 Atom mAtomGetWMName;
 Atom mAtomGetUTF8String;
 
 Display* mDisplay;
 XpmAttributes mSplashImageAttr;
+XImage* mSplashImage;
 Window mSplashWindow;
 
 /**
  * Module Entry.
  */
 int main(int argc, char *argv[]) {
-
     // Check for display error.
     const char* WAYLAND_DISPLAY = getenv("WAYLAND_DISPLAY");
     if (WAYLAND_DISPLAY && strlen(WAYLAND_DISPLAY) > 0) {
@@ -48,7 +52,7 @@ int main(int argc, char *argv[]) {
             "Display Manager is detected, FATAL." <<
             COLOR_NORMAL << endl;
         cout << COLOR_YELLOW << "xSplashImage: env var "
-            "$WAYLAND_DISPLAY == \"" << TEMP <<
+            "$WAYLAND_DISPLAY: \"" << TEMP <<
             "\"." << COLOR_NORMAL << endl;
         return true;
     }
@@ -60,7 +64,7 @@ int main(int argc, char *argv[]) {
             "Session type is detected, FATAL." <<
             COLOR_NORMAL << endl;
         cout << COLOR_YELLOW << "xSplashImage: env var "
-            "$XDG_SESSION_TYPE == \"" << SESSION_TYPE <<
+            "$XDG_SESSION_TYPE: \"" << SESSION_TYPE <<
             "\"." << COLOR_NORMAL << endl;
         return true;
     }
@@ -85,10 +89,9 @@ int main(int argc, char *argv[]) {
     XSetErrorHandler(handleX11ErrorEvent);
 
     // Read XPM SplashImage from file.
-    XImage* splashImage;
     mSplashImageAttr.valuemask = XpmSize;
-    XpmReadFileToImage(mDisplay, SPLASH_IMAGE_FILENAME.c_str(),
-        &splashImage, NULL, &mSplashImageAttr);
+    XpmReadFileToImage(mDisplay, SPLASH_IMAGE_FILENAME,
+        &mSplashImage, NULL, &mSplashImageAttr);
 
     // Determine where to center SplashImage.
     const int SCREEN_WIDTH = (WidthOfScreen(
@@ -99,28 +102,27 @@ int main(int argc, char *argv[]) {
         mSplashImageAttr.width) / 2;
     const int CENTER_Y = (SCREEN_HEIGHT -
         mSplashImageAttr.height) / 2;
-    mergeRootImageUnderSplashImage(splashImage,
-        CENTER_X, CENTER_Y);
+    mergeRootImageUnderSplashImage(CENTER_X, CENTER_Y);
 
     // Display logging info.
     cout << endl;
     cout << COLOR_BLUE << "Display Manager (DM) : " <<
         getDisplayManagerType() << "." << endl;
-    cout << COLOR_BLUE << "Session         (SE) : " <<
+    cout << "Session         (SE) : " <<
         SESSION_TYPE << "." << endl;
-    cout << COLOR_BLUE << "Desktop Environ (DE) : " <<
+    cout << "Desktop Environ (DE) : " <<
         getenv("XDG_CURRENT_DESKTOP") << "." << endl;
-    cout << COLOR_NORMAL;
-    cout << COLOR_BLUE << "Window Manager  (WM) : " <<
-        WM_NAME << "." << COLOR_NORMAL << endl;
+    cout << "Window Manager  (WM) : " <<
+        WM_NAME << "." << endl;
+    cout << COLOR_NORMAL << endl;
 
-    cout << endl;
     cout << "Screen Size      : " << SCREEN_WIDTH <<
         ", " << SCREEN_HEIGHT << "." << endl;
     cout << "SplashImage size : " << mSplashImageAttr.width <<
         ", " << mSplashImageAttr.height << "." << endl;
     cout << "Centered Pos     : " << CENTER_X <<
-        ", " << CENTER_Y << "." << endl << endl;
+        ", " << CENTER_Y << "." << endl;
+    cout << endl;
 
     // Create our X11 mSplashWindow to host the image.
     mSplashWindow = XCreateSimpleWindow(mDisplay,
@@ -140,9 +142,9 @@ int main(int argc, char *argv[]) {
     XMapWindow(mDisplay, mSplashWindow);
     XMoveWindow(mDisplay, mSplashWindow,
         CENTER_X, CENTER_Y);
-    displaySplashImage(splashImage);
+    displaySplashImage();
 
-    XDestroyImage(splashImage);
+    XDestroyImage(mSplashImage);
     XpmFreeAttributes(&mSplashImageAttr);
     XUnmapWindow(mDisplay, mSplashWindow);
     XDestroyWindow(mDisplay, mSplashWindow);
@@ -152,12 +154,71 @@ int main(int argc, char *argv[]) {
 }
 
 /**
- * Copies Desktop background "under" the splashImage.
+ * This method returns the Window Managers name.
+ */
+string getWindowManagerName() {
+    if (!displayCanReportWMName()) {
+        cout << endl << COLOR_YELLOW << "DM unable "
+            "to report WM Name." << COLOR_NORMAL << endl;
+        return {};
+    }
+
+    const Window ROOT_WINDOW = getRootWindowFromDisplay();
+    if (!ROOT_WINDOW) {
+        cout << endl << COLOR_YELLOW << "DM unable "
+            "to report Root Window." << COLOR_NORMAL <<
+            endl;
+        return {};
+    }
+
+    const string WM_NAME = getWMNameFromRootWindow(
+        ROOT_WINDOW);
+    return WM_NAME == "GNOME Shell" ?
+        "Gnome Shell (Mutter)" : WM_NAME;
+}
+
+/**
+ * Helper method to determine the Display Manager (DM).
+ */
+string getDisplayManagerType() {
+    const string UNKNOWN_DM_STRING = "(Unknown)";
+
+    const char* CMD = "ps --ppid 1";
+    FILE* procsFile = popen(CMD, "r");
+    if (!procsFile) {
+        return UNKNOWN_DM_STRING;
+    }
+
+    #define BUFFER_LENGTH 1024
+    char inFileBuffer[BUFFER_LENGTH];
+    try {
+        while (fgets(inFileBuffer, BUFFER_LENGTH,
+            procsFile) != nullptr) {
+            if (strstr(inFileBuffer, "lightdm") != 0) {
+                pclose(procsFile);
+                return "LightDM";
+            }
+            if (strstr(inFileBuffer, "sddm") != 0) {
+                pclose(procsFile);
+                return "Sddm";
+            }
+            if (strstr(inFileBuffer, "gdm") != 0) {
+                pclose(procsFile);
+                return "Gdm";
+            }
+        }
+    } catch (...) { }
+
+    pclose(procsFile);
+    return UNKNOWN_DM_STRING;
+}
+
+/**
+ * Copies Desktop background "under" the splash image.
  * "Transparent" pixels will reveal the desktop image
  * if available, else simply black.
  */
-void mergeRootImageUnderSplashImage(XImage* splashImage,
-    int xPos, int yPos) {
+void mergeRootImageUnderSplashImage(int xPos, int yPos) {
 
     XImage* desktopImage = XGetImage(mDisplay,
         DefaultRootWindow(mDisplay), xPos, yPos,
@@ -167,33 +228,33 @@ void mergeRootImageUnderSplashImage(XImage* splashImage,
         desktopImage = createBlackXImage();
     }
 
-    for (int h = 0; h < splashImage->height; h++) {
-        const int rowI = h * splashImage->width * 4;
+    for (int h = 0; h < mSplashImage->height; h++) {
+        const int rowI = h * mSplashImage->width * 4;
 
-        for (int w = 0; w < splashImage->width; w++) {
+        for (int w = 0; w < mSplashImage->width; w++) {
             const int byteI = rowI + (w * 4);
 
             const unsigned char fromByte0 =
-                *((splashImage->data) + byteI + 0);
+                *((mSplashImage->data) + byteI + 0);
             const unsigned char fromByte1 =
-                *((splashImage->data) + byteI + 1);
+                *((mSplashImage->data) + byteI + 1);
             const unsigned char fromByte2 =
-                *((splashImage->data) + byteI + 2);
+                *((mSplashImage->data) + byteI + 2);
 
             // Copy root pixel if this considered transparent.
             if (fromByte0 == 0x30 && fromByte1 == 0x30 &&
                 fromByte2 == 0x30) {
                 // Blue.
-                *((splashImage->data) + byteI + 0) =
+                *((mSplashImage->data) + byteI + 0) =
                     *((desktopImage->data) + byteI + 0);
                 // Green.
-                *((splashImage->data) + byteI + 1) =
+                *((mSplashImage->data) + byteI + 1) =
                     *((desktopImage->data) + byteI + 1);
                 // Red.
-                *((splashImage->data) + byteI + 2) =
+                *((mSplashImage->data) + byteI + 2) =
                     *((desktopImage->data) + byteI + 2);
                 // Opacity.
-                *((splashImage->data) + byteI + 3) =
+                *((mSplashImage->data) + byteI + 3) =
                     *((desktopImage->data) + byteI + 3);
             }
         }
@@ -228,7 +289,7 @@ XImage* createBlackXImage() {
 /**
  * Display the splash screen, pause, then destroy it.
  */
-void displaySplashImage(XImage* splashImage) {
+void displaySplashImage() {
     XSelectInput(mDisplay, mSplashWindow, ExposureMask);
 
     while (true) {
@@ -245,7 +306,7 @@ void displaySplashImage(XImage* splashImage) {
             if (XPending(mDisplay) == 0 &&
                 EVENT->width > 1 && EVENT->height > 1) {
                 XPutImage(mDisplay, mSplashWindow, XCreateGC(
-                    mDisplay, mSplashWindow, 0, 0), splashImage,
+                    mDisplay, mSplashWindow, 0, 0), mSplashImage,
                     0, 0, 0, 0, mSplashImageAttr.width,
                     mSplashImageAttr.height);
                 break; // Finished
@@ -261,67 +322,6 @@ void displaySplashImage(XImage* splashImage) {
     // Sleep with window displayed.
     XFlush(mDisplay);
     sleep(5);
-}
-
-/**
- * Helper method to determine the Display Manager (DM).
- */
-string getDisplayManagerType() {
-    const string UNKNOWN_DM_STRING = "(Unknown)";
-
-    string result = UNKNOWN_DM_STRING;
-    const char* CMD = "ps --ppid 1";
-    FILE* procsFile = popen(CMD, "r");
-    if (!procsFile) {
-        return result;
-    }
-
-    #define BUFFER_LENGTH 1024
-    char inFileBuffer[BUFFER_LENGTH];
-    try {
-        while (fgets(inFileBuffer, BUFFER_LENGTH,
-            procsFile) != nullptr) {
-            if (strstr(inFileBuffer, "lightdm") != 0) {
-                pclose(procsFile);
-                return "LightDM";
-            }
-            if (strstr(inFileBuffer, "sddm") != 0) {
-                pclose(procsFile);
-                return "Sddm";
-            }
-            if (strstr(inFileBuffer, "gdm") != 0) {
-                pclose(procsFile);
-                return "Gdm";
-            }
-        }
-    } catch (...) { }
-
-    pclose(procsFile);
-    return result;
-}
-
-/**
- * This method returns the Window Managers name.
- */
-string getWindowManagerName() {
-    if (!displayCanReportWMName()) {
-        cout << endl << COLOR_YELLOW << "DM unable "
-            "to report WM Name." << COLOR_NORMAL << endl;
-        return {};
-    }
-
-    const Window ROOT_WINDOW = getRootWindowFromDisplay();
-    if (!ROOT_WINDOW) {
-        cout << endl << COLOR_YELLOW << "DM unable "
-            "to report Root Window." << COLOR_NORMAL <<
-            endl;
-        return {};
-    }
-
-    const string WM_NAME = getWMNameFromRootWindow(
-        ROOT_WINDOW);
-    return WM_NAME == "GNOME Shell" ?
-        "Gnome Shell (Mutter)" : WM_NAME;
 }
 
 /**

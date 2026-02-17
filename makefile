@@ -3,7 +3,7 @@
 # Variables to control Compile / Link.
 
 APP_NAME="xSplashImage"
-APP_VERSION="2026-02-16"
+APP_VERSION="2026-02-17"
 APP_AUTHOR="Mark James Capella"
 
 # Color styling.
