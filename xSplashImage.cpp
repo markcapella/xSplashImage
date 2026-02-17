@@ -1,18 +1,17 @@
 
-/** ********************************************************
- ** Main xSplashImage. Minimally create and display an x11
- ** window SplashPage from a local XPM image file.
- **/
+/**
+ * Minimally create and display an x11 window SplashPage
+ * from a locally defined XPM image file.
+ */
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctype.h>
-
 #include <filesystem>
-
 #include <fstream>
 #include <iostream>
 #include <malloc.h>
+#include <memory>
 #include <string>
 #include <unistd.h>
 
@@ -25,74 +24,113 @@
 
 using namespace filesystem;
 
+ /**
+ * Module globals.
+ */
+const string SPLASH_IMAGE_FILENAME =
+    "xSplashImage.xpm";
 
-/** ********************************************************
- ** Module globals and consts.
- **/
-DMType mDisplayManagerType;
+Atom mAtomDMSupportsWMCheck;
+Atom mAtomGetWMName;
+Atom mAtomGetUTF8String;
+
 Display* mDisplay;
-
-XpmAttributes mSplashImageAttributes;
+XpmAttributes mSplashImageAttr;
 Window mSplashWindow;
 
-/** ********************************************************
- ** Module Entry.
- **/
+/**
+ * Module Entry.
+ */
 int main(int argc, char *argv[]) {
-    // Gnome && KDE get different X11 event counts that
-    // determine when the SplashPage has been completely DRAWN.
-    mDisplayManagerType = getDisplayManagerType();
-    if (mDisplayManagerType == DMType::INDETERMINATE) {
-        fprintf(stderr, "\nxSplashImage: Cannot determine "
-            "Display Manager, FATAL.\n");
+
+    // Check for display error.
+    const char* WAYLAND_DISPLAY = getenv("WAYLAND_DISPLAY");
+    if (WAYLAND_DISPLAY && strlen(WAYLAND_DISPLAY) > 0) {
+        const char* TEMP = WAYLAND_DISPLAY ?
+            WAYLAND_DISPLAY : "";
+        cout << COLOR_RED << endl << "xSplashImage: Wayland "
+            "Display Manager is detected, FATAL." <<
+            COLOR_NORMAL << endl;
+        cout << COLOR_YELLOW << "xSplashImage: env var "
+            "$WAYLAND_DISPLAY == \"" << TEMP <<
+            "\"." << COLOR_NORMAL << endl;
         return true;
     }
 
+    // Check for session error.
+    const char* SESSION_TYPE = getenv("XDG_SESSION_TYPE");
+    if (strcmp(SESSION_TYPE, "x11") != 0) {
+        cout << endl << COLOR_RED << "xSplashImage: No X11 "
+            "Session type is detected, FATAL." <<
+            COLOR_NORMAL << endl;
+        cout << COLOR_YELLOW << "xSplashImage: env var "
+            "$XDG_SESSION_TYPE == \"" << SESSION_TYPE <<
+            "\"." << COLOR_NORMAL << endl;
+        return true;
+    }
+
+    // Check for display access.
     mDisplay = XOpenDisplay(NULL);
     if (mDisplay == NULL) {
-        printf("\nxSplashImage: X11 Display Does not seem "
-            "to be available - FATAL. Are you Wayland?\n");
+        cout << COLOR_RED << "\nxSplashImage: X11 Display "
+            "Does not seem to be available (Are you Wayland?) "
+            "FATAL." << COLOR_NORMAL << endl;
         return true;
     }
 
-    // Setup Error handler.
+    // Check for Window Manager.
+    mAtomDMSupportsWMCheck = XInternAtom(mDisplay,
+        "_NET_SUPPORTING_WM_CHECK", False);
+    mAtomGetWMName = XInternAtom(mDisplay, "_NET_WM_NAME", False);
+    mAtomGetUTF8String = XInternAtom(mDisplay, "UTF8_STRING", False);
+    const string WM_NAME = getWindowManagerName();
+
+
+    // Setup x11 Error handler.
     XSetErrorHandler(handleX11ErrorEvent);
 
     // Read XPM SplashImage from file.
     XImage* splashImage;
-    mSplashImageAttributes.valuemask = XpmSize;
-    XpmReadFileToImage(mDisplay, "xSplashImage.xpm",
-        &splashImage, NULL, &mSplashImageAttributes);
+    mSplashImageAttr.valuemask = XpmSize;
+    XpmReadFileToImage(mDisplay, SPLASH_IMAGE_FILENAME.c_str(),
+        &splashImage, NULL, &mSplashImageAttr);
 
-    // Determine where to center our splash. Get screen
-    // dimensions, & merge desktop background under.
-    cout << "WidthOfScreen.width: " <<
-        WidthOfScreen(DefaultScreenOfDisplay(mDisplay)) << endl;
-    cout << "HeightOfScreen.height: " <<
-        HeightOfScreen(DefaultScreenOfDisplay(mDisplay)) << endl;
-
-    cout << "mSplashImageAttributes.width: " <<
-        mSplashImageAttributes.width << endl;
-    cout << "mSplashImageAttributes.height: " <<
-        mSplashImageAttributes.height << endl;
-
-    const int CENTERED_X_POS =
-        (WidthOfScreen(DefaultScreenOfDisplay(mDisplay)) -
-            mSplashImageAttributes.width) / 2;
-    const int CENTERED_Y_POS =
-        (HeightOfScreen(DefaultScreenOfDisplay(mDisplay)) -
-            mSplashImageAttributes.height) / 2;
-
-    cout << "CENTERED_X_POS: " << CENTERED_X_POS << endl;
-    cout << "CENTERED_Y_POS: " << CENTERED_Y_POS << endl;
-
+    // Determine where to center SplashImage.
+    const int SCREEN_WIDTH = (WidthOfScreen(
+        DefaultScreenOfDisplay(mDisplay)));
+    const int SCREEN_HEIGHT = (HeightOfScreen(
+        DefaultScreenOfDisplay(mDisplay)));
+    const int CENTER_X = (SCREEN_WIDTH -
+        mSplashImageAttr.width) / 2;
+    const int CENTER_Y = (SCREEN_HEIGHT -
+        mSplashImageAttr.height) / 2;
     mergeRootImageUnderSplashImage(splashImage,
-        CENTERED_X_POS, CENTERED_Y_POS);
+        CENTER_X, CENTER_Y);
+
+    // Display logging info.
+    cout << endl;
+    cout << COLOR_BLUE << "Display Manager (DM) : " <<
+        getDisplayManagerType() << "." << endl;
+    cout << COLOR_BLUE << "Session         (SE) : " <<
+        SESSION_TYPE << "." << endl;
+    cout << COLOR_BLUE << "Desktop Environ (DE) : " <<
+        getenv("XDG_CURRENT_DESKTOP") << "." << endl;
+    cout << COLOR_NORMAL;
+    cout << COLOR_BLUE << "Window Manager  (WM) : " <<
+        WM_NAME << "." << COLOR_NORMAL << endl;
+
+    cout << endl;
+    cout << "Screen Size      : " << SCREEN_WIDTH <<
+        ", " << SCREEN_HEIGHT << "." << endl;
+    cout << "SplashImage size : " << mSplashImageAttr.width <<
+        ", " << mSplashImageAttr.height << "." << endl;
+    cout << "Centered Pos     : " << CENTER_X <<
+        ", " << CENTER_Y << "." << endl << endl;
 
     // Create our X11 mSplashWindow to host the image.
     mSplashWindow = XCreateSimpleWindow(mDisplay,
         DefaultRootWindow(mDisplay), 0, 0,
-        mSplashImageAttributes.width, mSplashImageAttributes.height, 1,
+        mSplashImageAttr.width, mSplashImageAttr.height, 1,
         BlackPixel(mDisplay, 0), WhitePixel(mDisplay, 0));
 
     // Set window to dock (no titlebar or close button).
@@ -106,33 +144,30 @@ int main(int argc, char *argv[]) {
     // Map, then position window for Gnome.
     XMapWindow(mDisplay, mSplashWindow);
     XMoveWindow(mDisplay, mSplashWindow,
-        CENTERED_X_POS, CENTERED_Y_POS);
+        CENTER_X, CENTER_Y);
+    displaySplashImage(splashImage);
 
-    displaySplash(splashImage);
     XDestroyImage(splashImage);
-
-    XpmFreeAttributes(&mSplashImageAttributes);
-
+    XpmFreeAttributes(&mSplashImageAttr);
     XUnmapWindow(mDisplay, mSplashWindow);
     XDestroyWindow(mDisplay, mSplashWindow);
-
     XCloseDisplay(mDisplay);
+
     return false;
 }
 
-/** ********************************************************
- ** Copies root screen image "under" the splashImage.
- ** "Transparent" pixels will reveal the root window
- ** if available, else simply black.
- **/
+/**
+ * Copies Desktop background "under" the splashImage.
+ * "Transparent" pixels will reveal the desktop image
+ * if available, else simply black.
+ */
 void mergeRootImageUnderSplashImage(XImage* splashImage,
     int xPos, int yPos) {
 
-    // Try to use desktop image for Splash
-    // transparency, else, just use black.
-    XImage* desktopImage = XGetImage(mDisplay, DefaultRootWindow(
-        mDisplay), xPos, yPos, mSplashImageAttributes.width,
-        mSplashImageAttributes.height, AllPlanes, ZPixmap);
+    XImage* desktopImage = XGetImage(mDisplay,
+        DefaultRootWindow(mDisplay), xPos, yPos,
+        mSplashImageAttr.width, mSplashImageAttr.height,
+        AllPlanes, ZPixmap);
     if (!desktopImage) {
         desktopImage = createBlackXImage();
     }
@@ -153,12 +188,16 @@ void mergeRootImageUnderSplashImage(XImage* splashImage,
             // Copy root pixel if this considered transparent.
             if (fromByte0 == 0x30 && fromByte1 == 0x30 &&
                 fromByte2 == 0x30) {
+                // Blue.
                 *((splashImage->data) + byteI + 0) =
-                    *((desktopImage->data) + byteI + 0); // Blue.
+                    *((desktopImage->data) + byteI + 0);
+                // Green.
                 *((splashImage->data) + byteI + 1) =
-                    *((desktopImage->data) + byteI + 1); // Green.
+                    *((desktopImage->data) + byteI + 1);
+                // Red.
                 *((splashImage->data) + byteI + 2) =
-                    *((desktopImage->data) + byteI + 2); // Red.
+                    *((desktopImage->data) + byteI + 2);
+                // Opacity.
                 *((splashImage->data) + byteI + 3) =
                     *((desktopImage->data) + byteI + 3);
             }
@@ -168,20 +207,21 @@ void mergeRootImageUnderSplashImage(XImage* splashImage,
     XDestroyImage(desktopImage);
 }
 
-/** ********************************************************
- ** Helper method ...
- **/
+/**
+ * Helper method to provide a black XImage of
+ * desktop size.
+ */
 XImage* createBlackXImage() {
     char* allocData = (char*)
-        calloc(mSplashImageAttributes.width *
-            mSplashImageAttributes.height * 4, 1);
+        calloc(mSplashImageAttr.width *
+            mSplashImageAttr.height * 4, 1);
 
     XImage* resultImage = XCreateImage(mDisplay,
         DefaultVisual(mDisplay, DefaultScreen(mDisplay)),
         DefaultDepth(mDisplay, DefaultScreen(mDisplay)),
         ZPixmap, 0, allocData,
-        mSplashImageAttributes.width,
-        mSplashImageAttributes.height,
+        mSplashImageAttr.width,
+        mSplashImageAttr.height,
         32, 0);
 
     if (!resultImage) {
@@ -190,118 +230,185 @@ XImage* createBlackXImage() {
     return resultImage;
 }
 
-/** ********************************************************
- ** Helper method to determine if the display manager
- ** is SDDM or GDM. Gnome && KDE get different X11 event
- ** counts that determine when the SplashPage has been
- ** completely DRAWN.
- **/
-DMType getDisplayManagerType() {
-    const string FILE1 = "/etc/X11/default-display-manager";
-    const DMType FILE1_DMTYPE = getDMTypeFromFile(FILE1);
-    if (FILE1_DMTYPE != DMType::INDETERMINATE) {
-        return FILE1_DMTYPE;
-    }
-
-    const string FILE2 = "/etc/sysconfig/desktop";
-    const DMType FILE2_DMTYPE = getDMTypeFromFile(FILE2);
-    if (FILE2_DMTYPE != DMType::INDETERMINATE) {
-        return FILE2_DMTYPE;
-    }
-
-    const string FILE3 = "/etc/sysconfig/displaymanager";
-    const DMType FILE3_DMTYPE = getDMTypeFromFile(FILE3);
-    if (FILE3_DMTYPE != DMType::INDETERMINATE) {
-        return FILE3_DMTYPE;
-    }
-
-    return DMType::INDETERMINATE;
-}
-
-/** ********************************************************
- ** Helper method to determine if the Display Manager
- ** identity Type is found in a file.
- **/
-DMType getDMTypeFromFile(const string inFile) {
-    if (!exists(inFile)) {
-        return DMType::INDETERMINATE;
-    }
-
-    if (is_directory(status(inFile))) {
-        return DMType::INDETERMINATE;
-    }
-
-    fstream inStream;
-    inStream.open(canonical(inFile), ios::in);
-    if (!inStream.is_open()) {
-        return DMType::INDETERMINATE;
-    }
-
-    string inString;
-    while (getline(inStream, inString)) {
-        cout << "file: " << inFile << " = " << inString << "." << endl;
-        if (inString.find("sddm") != string::npos) {
-            inStream.close();
-            cout << "   specifies: sddm as DM." << endl;
-            return DMType::SDDM;
-        }
-        if (inString.find("gdm") != string::npos) {
-            inStream.close();
-            cout << "   specifies: gdm as DM." << endl;
-            return DMType::GDM;
-        }
-    }
-
-    inStream.close();
-    return DMType::INDETERMINATE;
-}
-
-/** ********************************************************
- ** Display the splash screen, pause, then destroy it.
- **/
-void displaySplash(XImage* splashScreen) {
-    const int EXPOSED_EVENT_COUNT_NEEDED =
-        mDisplayManagerType == DMType::GDM ? 3 : 1;
-
-    cout << "EXPOSED_EVENT_COUNT_NEEDED: " <<
-        EXPOSED_EVENT_COUNT_NEEDED << endl;
-
-    // Show SplashImage in the window. Consume X11 events.
-    // Respond to Expose event for DRAW.
+/**
+ * Display the splash screen, pause, then destroy it.
+ */
+void displaySplashImage(XImage* splashImage) {
     XSelectInput(mDisplay, mSplashWindow, ExposureMask);
 
-    int exposedEventCount = 0;
-    bool finalEventReceived = false;
-
-    while (!finalEventReceived) {
+    while (true) {
         XEvent event;
         XNextEvent(mDisplay, &event);
-        debugXEvent(event);
 
-        switch (event.type) {
-            case Expose:
-                if (++exposedEventCount >= EXPOSED_EVENT_COUNT_NEEDED) {
-                    XPutImage(mDisplay, mSplashWindow,
-                        XCreateGC(mDisplay, mSplashWindow, 0, 0),
-                        splashScreen, 0, 0, 0, 0, mSplashImageAttributes.width,
-                        mSplashImageAttributes.height);
-                    finalEventReceived = true;
-                }
+        // Process Expose Events.
+        if (event.type == Expose) {
+            const XExposeEvent* EVENT =
+                (XExposeEvent*) &event;
+            debugXExposeEvent(EVENT);
+
+            // Respond to Expose event for DRAW.
+            if (XPending(mDisplay) == 0 &&
+                EVENT->width > 1 && EVENT->height > 1) {
+                XPutImage(mDisplay, mSplashWindow, XCreateGC(
+                    mDisplay, mSplashWindow, 0, 0), splashImage,
+                    0, 0, 0, 0, mSplashImageAttr.width,
+                    mSplashImageAttr.height);
+                break; // Finished
+            }
+            continue;
         }
+
+        // Debug all other Events.
+        const XAnyEvent* ANY_EVENT = (XAnyEvent*) &event;
+        debugXAnyEvent(ANY_EVENT);
     }
-    XFlush(mDisplay);
 
     // Sleep with window displayed.
+    XFlush(mDisplay);
     sleep(5);
 }
 
-/** ************************************************
- ** This method traps and handles X11 errors.
- **
- ** Primarily, we close the app if the system doesn't seem sane.
- **/
+/**
+ * Helper method to determine the Display Manager (DM).
+ */
+string getDisplayManagerType() {
+    const char* CMD = "ps --ppid 1";
+    FILE* procsListPipe = popen(CMD, "r");
+    if (!procsListPipe) {
+        return "Unknown";
+    }
+
+    AUTOCLOSE_FILEPTR ppPtr(procsListPipe, &pclose);
+    return getDMTypeFromPipe(std::move(ppPtr));
+}
+
+/**
+ * Helper method to find a DM in a pipe.
+ */
+string getDMTypeFromPipe(AUTOCLOSE_FILEPTR pipe) {
+    char inLine[2048];
+
+    while (fgets(inLine, sizeof(inLine),
+        pipe.get()) != nullptr) {
+        const string INLINE(inLine);
+        if (INLINE.find("lightdm") != string::npos) {
+            return "LightDM";
+        }
+        if (INLINE.find("sddm") != string::npos) {
+            return "Sddm";
+        }
+        if (INLINE.find("gdm") != string::npos) {
+            return "Gdm";
+        }
+    }
+
+    return "Unknown DM";
+}
+
+/**
+ * This method returns the Window Managers name.
+ */
+string getWindowManagerName() {
+    if (!displayCanReportWMName()) {
+        cout << endl << COLOR_YELLOW << "DM unable "
+            "to report WM Name." << COLOR_NORMAL << endl;
+        return {};
+    }
+
+    const Window ROOT_WINDOW = getRootWindowFromDisplay();
+    if (!ROOT_WINDOW) {
+        cout << endl << COLOR_YELLOW << "DM unable "
+            "to report Root Window." << COLOR_NORMAL <<
+            endl;
+        return {};
+    }
+
+    const string WM_NAME = getWMNameFromRootWindow(
+        ROOT_WINDOW);
+    return WM_NAME == "GNOME Shell" ?
+        "Gnome Shell (Mutter)" : WM_NAME;
+}
+
+/**
+ * Helper method to check if the DM can report
+ * information about the WM.
+ */
+bool displayCanReportWMName() {
+    return mAtomDMSupportsWMCheck && mAtomGetWMName &&
+        mAtomGetUTF8String;
+}
+
+/**
+ * Helper method to get the Root Window of the DM.
+ */
+Window getRootWindowFromDisplay() {
+    Window resultWindow = None;
+
+    Atom resultType;
+    int resultFormat;
+    unsigned long resultCount;
+    unsigned long unused;
+
+    unsigned char* resultWindowPtr = nullptr;
+    if (XGetWindowProperty(mDisplay, DefaultRootWindow(mDisplay),
+        mAtomDMSupportsWMCheck, 0, 1, False, XA_WINDOW,
+        &resultType, &resultFormat, &resultCount,
+        &unused, &resultWindowPtr) == Success) {
+
+        if (resultWindowPtr != nullptr) {
+            if (resultType == XA_WINDOW &&
+                resultFormat == 32 && resultCount == 1) {
+                resultWindow = *reinterpret_cast<Window*>
+                    (resultWindowPtr);
+            }
+            XFree(resultWindowPtr);
+            resultWindowPtr = nullptr;
+        }
+    }
+
+    return resultWindow;
+}
+
+/**
+ * Helper method to get the WM Name from the
+ * DM's Root Window.
+ */
+string getWMNameFromRootWindow(Window rootWindow) {
+    if (rootWindow == None) {
+        return {};
+    }
+
+    Atom resultType;
+    int resultFormat;
+    unsigned long resultCount;
+    unsigned long unused;
+
+    unsigned char* resultWindowPtr = nullptr;
+    if (XGetWindowProperty(mDisplay, rootWindow,
+        mAtomGetWMName, 0, 1024, False, mAtomGetUTF8String,
+        &resultType, &resultFormat, &resultCount,
+        &unused, &resultWindowPtr) == Success) {
+
+        if (resultWindowPtr != nullptr) {
+            if (resultType == mAtomGetUTF8String ||
+                resultType == XA_STRING) {
+                const std::string RESULT_NAME(reinterpret_cast
+                    <char*> (resultWindowPtr), resultCount);
+                XFree(resultWindowPtr);
+                resultWindowPtr = nullptr;
+                return RESULT_NAME;
+            }
+        }
+    }
+
+    return {};
+}
+
+/**
+ * This method traps and handles X11 errors.
+ */
 int handleX11ErrorEvent(Display* dpy, XErrorEvent* event) {
-    // Save error & quit early if simply BadWindow/BadMatch.
+    // Continue if simply BadWindow/BadMatch.
     if (event->error_code == BadWindow ||
         event->error_code == BadMatch) {
         return 0;
@@ -317,11 +424,11 @@ int handleX11ErrorEvent(Display* dpy, XErrorEvent* event) {
     return 0;
 }
 
-/** ********************************************************
- ** Helper method to debug the XImage contents.
- **/
+/**
+ * Helper method to debug the XImage contents.
+ */
 void debugXImage(string tag, XImage* image) {
-    printf("\ndebugXImage() width / height : %d x %d\n",
+    printf("\ndebugXImage() width, height : %d, %d\n",
         image->width, image->height);
     printf("debugXImage() xoffset, format : %d, %d\n\n",
         image->xoffset, image->format);
@@ -344,13 +451,30 @@ void debugXImage(string tag, XImage* image) {
     }
 }
 
-/** ********************************************************
- ** Helper method to debug the XImage contents.
- **/
-void debugXEvent(XEvent event) {
-    const XAnyEvent* ANY_EVENT = (XAnyEvent*) &event;
+/**
+ * Helper method to debug XExposeEvents.
+ */
+void debugXExposeEvent(const XExposeEvent* event) {
+    cout << "XExposeEvent Window: " << event->window <<
+        " Display: " << event->display << endl;
+    cout << "   Type: " << event->type <<
+        " serial: " << event->serial <<
+        " send_event: " << event->send_event << endl;
+    cout << "    Pos: " << event->x << ", " << event->y <<
+        " Size: " << event->width << ", " << event->height <<
+        " Count: " << event->count <<
+        " XPending: " << XPending(mDisplay) << endl;
+    cout << endl;
+}
 
-    cout << "X11Event Window: " << ANY_EVENT->window <<
-        " Display: " << ANY_EVENT->display <<
-        " Type: " << ANY_EVENT->type << endl;
+/**
+ * Helper method to debug any x11 XEvent.
+ */
+void debugXAnyEvent(const XAnyEvent* event) {
+    cout << "XAnyEvent Window: " << event->window <<
+        " Display: " << event->display << endl;
+    cout << "   Type: " << event->type <<
+        " Serial: " << event->serial <<
+        " Send_event: " << event->send_event << endl;
+    cout << endl;
 }

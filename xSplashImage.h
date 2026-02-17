@@ -1,14 +1,21 @@
 
 #pragma once
 
+/**
+ * Minimally create and display an x11 window SplashPage
+ * from a locally defined XPM image file.
+ */
+#include <memory>
 #include <string>
 
 using namespace std;
 
+using AUTOCLOSE_FILEPTR = unique_ptr<
+    FILE, int (*)(FILE*)>;
 
-/** ********************************************************
- ** Module Type & Defines.
- **/
+/**
+ * Module Type & Defines.
+ */
 enum class DMType {
     INDETERMINATE,
     GDM,
@@ -25,19 +32,26 @@ enum class DMType {
 #define COLOR_MAGENTA "\033[1;35m"
 #define COLOR_CYAN "\033[1;36m"
 
-/** ********************************************************
- ** Module Method definitions.
- **/
-void mergeRootImageUnderSplashImage(XImage* splashImage,
-    int xPos, int yPos);
+/**
+ * Module Method definitions.
+ */
+void mergeRootImageUnderSplashImage(
+    XImage* splashImage, int xPos, int yPos);
 XImage* createBlackXImage();
 
-DMType getDisplayManagerType();
-DMType getDMTypeFromFile(const string inFile);
+void displaySplashImage(XImage* splashImage);
 
-void displaySplash(XImage* splashScreen);
+string getDisplayManagerType();
+string getDMTypeFromPipe(AUTOCLOSE_FILEPTR pipe);
 
-int handleX11ErrorEvent(Display* dpy, XErrorEvent* event);
+string getWindowManagerName();
+bool displayCanReportWMName();
+Window getRootWindowFromDisplay();
+string getWMNameFromRootWindow(Window rootWindow);
+
+int handleX11ErrorEvent(Display* mDisplay,
+    XErrorEvent* event);
 
 void debugXImage(string tag, XImage* image);
-void debugXEvent(XEvent event);
+void debugXAnyEvent(const XAnyEvent* event);
+void debugXExposeEvent(const XExposeEvent* event);
