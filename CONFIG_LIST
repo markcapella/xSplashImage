@@ -1,0 +1,52 @@
+
+Supported DM's are GDM & SDDM.
+
+HOST:
+    Display Manager (DM) : SDDM.
+    SESSION TYPE    (SE) : x11.
+    Desktop Environ (DE) : LXQt.
+    Window Manager  (WM) : Openbox.
+
+
+GUEST:
+    KdePlasma5:
+        Display Manager (DM) : SDDM.
+        SESSION TYPE    (SE) : x11.
+        Desktop Environ (DE) : KDE.
+        Window Manager  (WM) : KWin.
+
+    Ubuntu24:    DM: GDM   DE: ubuntu:GNOME  WM: GNOME Shell / Mutter
+        Display Manager (DM) : GDM.
+        SESSION TYPE    (SE) : x11.
+        Desktop Environ (DE) : ubuntu:GNOME.
+        Window Manager  (WM) : Gnome Shell (Mutter).
+
+
+NEXT ------------------>
+
+
+    LxQt:
+        Display Manager (DM) : SDDM.
+        SESSION TYPE    (SE) : x11.
+        Desktop Environ (DE) : LXQt.
+
+        Window Manager  (WM) : Openbox.
+        Window Manager  (WM) : Fluxbox
+        Window Manager  (WM) : Xfwm4
+        Window Manager  (WM) : IceWM
+        Window Manager  (WM) : PekWM
+
+
+THEN ----------------->
+
+
+AwesomeWM (Tiling):
+Blackbox: A fast,
+Bspwm (Tiling):
+Dwm (Tiling):
+FVWM: A powerful
+i3wm (Tiling):
+Metacity
+Qtile
+Spectrwm
+Xmonad (Tiling):
