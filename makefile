@@ -3,7 +3,7 @@
 # Variables to control Compile / Link.
 
 APP_NAME="xSplashImage"
-APP_VERSION="2026-02-19"
+APP_VERSION="2026-03-04"
 APP_AUTHOR="Mark James Capella"
 
 # Color styling.
@@ -93,7 +93,7 @@ run:
 	@echo
 	@echo "$(COLOR_BLUE)Run Starts.$(COLOR_NORMAL)"
 
-	@./xSplashImage potOfGold.xpm
+	./xSplashImage potOfGold.xpm
 
 	@echo "$(COLOR_BLUE)Run Done.$(COLOR_NORMAL)"
 

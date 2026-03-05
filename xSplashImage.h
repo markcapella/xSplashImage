@@ -5,6 +5,7 @@
  * Minimally create and display an x11 window SplashPage
  * from a locally defined XPM image file.
  */
+#include <chrono>
 #include <string>
 
 using namespace std;
@@ -59,5 +60,5 @@ int handleX11ErrorEvent(Display* display,
     XErrorEvent* event);
 
 void debugXImage(string tag, XImage* image);
-void debugXAnyEvent(const XAnyEvent* event);
 void debugXExposeEvent(const XExposeEvent* event);
+void debugXAnyEvent(const XAnyEvent* event);

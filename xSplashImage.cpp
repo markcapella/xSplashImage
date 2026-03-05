@@ -3,6 +3,8 @@
  * Minimally create and display an x11 window SplashPage
  * from a locally defined XPM image file.
  */
+
+// Std C and c++.
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -16,16 +18,18 @@
 #include <thread>
 #include <unistd.h>
 
+// X11.
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/xpm.h>
 #include <X11/Xutil.h>
 
+// Application.
 #include "xSplashImage.h"
 
 
 /**
- * Module Consts.
+ * Module globals.
  */
 Atom mAtomDMSupportsWMCheck;
 Atom mAtomGetWMName;
@@ -42,9 +46,9 @@ Window mSplashWindow;
 int main(int argc, char* argv[]) {
     // Check for input file.
     if (argc < 2) {
-        cout << XCOLOR_RED << endl << "xSplashImage: No " <<
-            "input XImage named on command line, FATAL." <<
-            XCOLOR_NORMAL << endl;
+        cout << XCOLOR_RED << endl << "xSplashImage: " <<
+            "Please specify an input XPM on the " <<
+            "command line." << XCOLOR_NORMAL << endl;
         return true;
     }
     const char* SPLASH_IMAGE_FILENAME = argv[1];
@@ -91,8 +95,10 @@ int main(int argc, char* argv[]) {
     mAtomGetUTF8String = XInternAtom(mDisplay, "UTF8_STRING", False);
     const string WM_NAME = getWindowManagerName();
 
-    // Setup x11 Error handler & read XPM SplashImage.
+    // Setup x11 Error handler.
     XSetErrorHandler(handleX11ErrorEvent);
+
+    // Read XPM SplashImage from file.
     mSplashImageAttr.valuemask = XpmSize;
     if (XpmReadFileToImage(mDisplay, SPLASH_IMAGE_FILENAME,
         &mSplashImage, NULL, &mSplashImageAttr) == XpmOpenFailed) {
@@ -158,17 +164,8 @@ int main(int argc, char* argv[]) {
     XMoveWindow(mDisplay, mSplashWindow,
         CENTER_X, CENTER_Y);
 
-    // Init NCurses;
-    initscr();
-    cbreak();
-    noecho();
-    nodelay(stdscr, true);
-
     // Display.
     displaySplashImage();
-
-    // Uninit NCurses.
-    endwin();
 
     // All other uninit.
     XUnmapWindow(mDisplay, mSplashWindow);
@@ -290,6 +287,7 @@ string getWMNameFromRootWindow(Window rootWindow) {
         XCOLOR_NORMAL << endl;
     return {};
 }
+
 /**
  * Helper method to determine the Display Manager (DM).
  */
@@ -338,6 +336,7 @@ string getDisplayManagerName() {
  * if available, else simply black.
  */
 bool mergeRootImageUnderSplashImage(int xPos, int yPos) {
+
     XImage* desktopImage = XGetImage(mDisplay,
         DefaultRootWindow(mDisplay), xPos, yPos,
         mSplashImageAttr.width, mSplashImageAttr.height,
@@ -421,6 +420,14 @@ XImage* createBlackXImage() {
  * Display the splash screen, pause, then destroy it.
  */
 void displaySplashImage() {
+    // Init NCurses;
+    initscr();
+    printw("\n");
+
+    cbreak();
+    noecho();
+    nodelay(stdscr, true);
+
     const chrono::time_point<Clock>
         START_TIME = Clock::now();
 
@@ -447,6 +454,8 @@ void displaySplashImage() {
                         0, 0, 0, 0, mSplashImageAttr.width,
                         mSplashImageAttr.height);
                     finalExposeEventReceived = true;
+                    printw("xSplashImage: Press ANY KEY or CLICK "
+                        "to finish ...\n");
                 }
                 continue;
             }
@@ -463,7 +472,6 @@ void displaySplashImage() {
     // sleep until rest of time limit.
     if (finalExposeEventReceived) {
         const Milliseconds TIME_MAX(5000);
-
         const chrono::time_point<Clock> END_TIME = Clock::now();
         const Milliseconds TIME_USED = END_TIME - START_TIME;
         const Milliseconds TIME_REMAIN = TIME_MAX - TIME_USED;
@@ -471,6 +479,9 @@ void displaySplashImage() {
             sleepWithTimeoutOrKbdPressed(TIME_REMAIN);
         }
     }
+
+    // Uninit NCurses.
+    endwin();
 }
 
 /**
@@ -575,16 +586,18 @@ void debugXImage(string tag, XImage* image) {
  * output in a temp NCurses alternate terminal.
  */
 void debugXExposeEvent(const XExposeEvent* event) {
-    cout << "XExposeEvent Window: " << event->window <<
-        " Display: " << event->display << '\r' << endl;
-    cout << "   Type: " << event->type <<
-        " serial: " << event->serial <<
-        " send_event: " << event->send_event << '\r' << endl;
-    cout << "    Pos: " << event->x << ", " << event->y <<
-        " Size: " << event->width << ", " << event->height <<
-        " Count: " << event->count <<
-        " XPending: " << XPending(mDisplay) << '\r' << endl;
-    cout << '\r' << endl;
+    printw("XExposeEvent Window: 0x%08lx  Display: %p.\n",
+        event->window, event->display);
+
+    printw("   Type: %d  serial: %lu  send_event: %d.\n",
+        event->type, event->serial, event->send_event);
+
+    printw("    Pos: %d x %d  Size: %d x %d  Count: %d  "
+        "XPending: %d.\n", event->x, event->y,
+        event->width, event->height,
+        event->count, XPending(event->display));
+
+    printw("\n\n");
 }
 
 /**
@@ -592,10 +605,11 @@ void debugXExposeEvent(const XExposeEvent* event) {
  * output in a temp NCurses alternate terminal.
  */
 void debugXAnyEvent(const XAnyEvent* event) {
-    cout << "XAnyEvent Window: " << event->window <<
-        " Display: " << event->display << '\r' << endl;
-    cout << "   Type: " << event->type <<
-        " Serial: " << event->serial <<
-        " Send_event: " << event->send_event << '\r' << endl;
-    cout << '\r' << endl;
+    printw("XAnyEvent Window: 0x%08lx  Display: %p.\n",
+        event->window, event->display);
+
+    printw("   Type: %d  serial: %lu  send_event: %d.\n",
+        event->type, event->serial, event->send_event);
+
+    printw("\n\n");
 }

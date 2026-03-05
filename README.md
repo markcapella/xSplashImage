@@ -39,13 +39,18 @@ For Fedora systems:
 
 * make
 * make run
+
+* sudo make install
+* xSplashImage SOME_XPM_FILE
+* sudo make uninstall
+
 * make clean
 &nbsp;
 
 ### tl;dr
-       ./configure && make && make run
+       make && make run
 
 &nbsp;
 
-## markcapella@twcny.rr.com Rocks !
+## markjamescapella@proton.me Rocks !
     Yeah I do.
