@@ -3,7 +3,7 @@
 # Variables to control Compile / Link.
 
 APP_NAME="xSplashImage"
-APP_VERSION="2026-03-04"
+APP_VERSION="2026-03-06"
 APP_AUTHOR="Mark James Capella"
 
 # Color styling.
@@ -56,8 +56,11 @@ all:
 	@echo "$(COLOR_BLUE)Build Starts.$(COLOR_NORMAL)"
 	@echo
 
+	$(CPP) $(APP_CFLAGS) -c xDisplayHelper.cpp
 	$(CPP) $(APP_CFLAGS) -c xSplashImage.cpp
-	$(CPP) xSplashImage.o $(APP_LFLAGS) -o xSplashImage
+
+	$(CPP) xSplashImage.o xDisplayHelper.o \
+		$(APP_LFLAGS) -o xSplashImage
 
 	@echo "true" > "BUILD_COMPLETE"
 
@@ -177,6 +180,7 @@ clean:
 	@echo "$(COLOR_BLUE)Clean Starts.$(COLOR_NORMAL)"
 	@echo
 
+	rm -f xDisplayHelper.o
 	rm -f xSplashImage.o
 	rm -f xSplashImage
 

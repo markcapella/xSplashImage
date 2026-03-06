@@ -26,18 +26,21 @@
 
 // Application.
 #include "xSplashImage.h"
-
+#include "xDisplayHelper.h"
 
 /**
  * Module globals.
  */
+xDisplayHelper* mDisplayHelper;
+Display* mDisplay;
+
 Atom mAtomDMSupportsWMCheck;
 Atom mAtomGetWMName;
 Atom mAtomGetUTF8String;
 
-Display* mDisplay;
 XpmAttributes mSplashImageAttr;
 XImage* mSplashImage;
+
 Window mSplashWindow;
 
 /**
@@ -53,34 +56,9 @@ int main(int argc, char* argv[]) {
     }
     const char* SPLASH_IMAGE_FILENAME = argv[1];
 
-    // Check for display error.
-    const char* WAYLAND_DISPLAY = getenv("WAYLAND_DISPLAY");
-    if (WAYLAND_DISPLAY && strlen(WAYLAND_DISPLAY) > 0) {
-        const char* TEMP = WAYLAND_DISPLAY ?
-            WAYLAND_DISPLAY : "";
-        cout << XCOLOR_RED << endl << "xSplashImage: Wayland "
-            "Display Manager is detected, FATAL." <<
-            XCOLOR_NORMAL << endl;
-        cout << XCOLOR_YELLOW << "xSplashImage: env var "
-            "$WAYLAND_DISPLAY: \"" << TEMP <<
-            "\"." << XCOLOR_NORMAL << endl;
-        return true;
-    }
-
-    // Check for session error.
-    const char* SESSION_TYPE = getenv("XDG_SESSION_TYPE");
-    if (strcmp(SESSION_TYPE, "x11") != 0) {
-        cout << endl << XCOLOR_RED << "xSplashImage: No X11 "
-            "Session type is detected, FATAL." <<
-            XCOLOR_NORMAL << endl;
-        cout << XCOLOR_YELLOW << "xSplashImage: env var "
-            "$XDG_SESSION_TYPE: \"" << SESSION_TYPE <<
-            "\"." << XCOLOR_NORMAL << endl;
-        return true;
-    }
-
     // Check for display access.
-    mDisplay = XOpenDisplay(NULL);
+    mDisplayHelper = new xDisplayHelper();
+    mDisplay = mDisplayHelper->getDisplay();
     if (mDisplay == NULL) {
         cout << XCOLOR_RED << "\nxSplashImage: X11 Display "
             "does not seem to be available (Are you Wayland?) "
@@ -130,7 +108,7 @@ int main(int argc, char* argv[]) {
     cout << XCOLOR_BLUE << "Display Manager (DM) : " <<
         getDisplayManagerName() << "." << endl;
     cout << "Session         (SE) : " <<
-        SESSION_TYPE << "." << endl;
+        mDisplayHelper->getSessionType() << "." << endl;
     cout << "Desktop Environ (DE) : " <<
         getenv("XDG_CURRENT_DESKTOP") << "." << endl;
     cout << "Window Manager  (WM) : " <<
